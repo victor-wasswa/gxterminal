@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EUR/USD Scalping Analysis</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/technicalindicators/dist/browser.js"></script>
+    <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+    <style>
+        body {
+            background-color: #f8f9fa;
+            margin: 0;
+            padding: 0;
+        }
+        .card {
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: none;
+            margin-bottom: 1rem;
+        }
+        #tradingview_chart {
+            height: 800px;
+            width: 100%;
+        }
+        .progress {
+            height: 20px;
+        }
+        .navbar {
+            margin-bottom: 0;
+        }
+        .main-container {
+            display: flex;
+            height: calc(100vh - 56px);
+        }
+        .chart-container {
+            flex: 1;
+            padding: 0;
+            height: 100%;
+        }
+        .sidebar {
+            width: 350px;
+            padding: 15px;
+            background-color: #f8f9fa;
+            overflow-y: auto;
+        }
+        .indicator-value {
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #2c3e50;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-dark bg-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand">EUR/USD Scalping Analysis</span>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <div class="chart-container">
+            <div id="tradingview_chart"></div>
+        </div>
+        
+        <div class="sidebar">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Analysis Results</h5>
+                </div>
+                <div class="card-body">
+                    <div id="analysisResults">
+                        <div class="alert alert-info">
+                            Analyzing market conditions...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Trading Signals</h5>
+                </div>
+                <div class="card-body">
+                    <div id="tradingSignals">
+                        <div class="alert alert-warning">
+                            Waiting for signals...
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Technical Indicators</h5>
+                </div>
+                <div class="card-body">
+                    <div id="technicalIndicators">
+                        <div class="row">
+                            <div class="col-6">
+                                <h6>RSI</h6>
+                                <div id="rsiValue" class="indicator-value">--</div>
+                            </div>
+                            <div class="col-6">
+                                <h6>MACD</h6>
+                                <div id="macdValue" class="indicator-value">--</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">Market Sentiment</h5>
+                </div>
+                <div class="card-body">
+                    <div id="marketSentiment">
+                        <div class="progress mb-2">
+                            <div class="progress-bar" role="progressbar" style="width: 50%"></div>
+                        </div>
+                        <div class="text-center">
+                            <span id="sentimentValue" class="indicator-value">Neutral</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    
+    <script>
+        let updateInterval = null;
+        const API_KEY = 'ttuRUe5WvaWWs-Lc11S7'; // Predefined API key
+
+        // Initialize TradingView Widget
+        new TradingView.widget({
+            "width": "100%",
+            "height": "100%",
+            "symbol": "FX:EURUSD",
+            "interval": "5",
+            "timezone": "exchange",
+            "theme": "dark",
+            "style": "1",
+            "locale": "en",
+            "toolbar_bg": "#f1f3f6",
+            "enable_publishing": false,
+            "hide_side_toolbar": false,
+            "allow_symbol_change": false,
+            "container_id": "tradingview_chart",
+            "studies": [
+                "RSI@tv-basicstudies",
+                "MACD@tv-basicstudies",
+                "BB@tv-basicstudies"
+            ],
+            "show_popup_button": true,
+            "popup_width": "1000",
+            "popup_height": "650",
+            "hide_volume": true,
+            "details": true,
+            "hotlist": true,
+            "calendar": true
+        });
+
+        async function getHistoricalData(apiKey) {
+            const endDate = new Date();
+            const startDate = new Date();
+            startDate.setDate(endDate.getDate() - 30);
+
+            const url = `https://marketdata.tradermade.com/api/v1/timeseries?currency=EURUSD&api_key=${apiKey}&start_date=${startDate.toISOString().split('T')[0]}&end_date=${endDate.toISOString().split('T')[0]}`;
+            
+            const response = await fetch(url);
+            const data = await response.json();
+            
+            if (data.quotes) {
+                return data.quotes;
+            }
+            throw new Error(data.message || 'Failed to fetch data');
+        }
+
+        function calculateIndicators(data) {
+            const closes = Object.values(data).map(quote => quote.close);
+            
+            // Calculate RSI
+            const rsi = new TechnicalIndicators.RSI({
+                values: closes,
+                period: 14
+            }).getResult();
+
+            // Calculate MACD
+            const macd = new TechnicalIndicators.MACD({
+                values: closes,
+                fastPeriod: 12,
+                slowPeriod: 26,
+                signalPeriod: 9,
+                SimpleMAOscillator: false,
+                SimpleMASignal: false
+            }).getResult();
+
+            // Calculate Bollinger Bands
+            const bb = new TechnicalIndicators.BollingerBands({
+                values: closes,
+                period: 20,
+                stdDev: 2
+            }).getResult();
+
+            return {
+                closes,
+                rsi: rsi[rsi.length - 1],
+                macd: macd[macd.length - 1],
+                bb: bb[bb.length - 1]
+            };
+        }
+
+        function analyzeMarket(data, indicators) {
+            const currentPrice = indicators.closes[indicators.closes.length - 1];
+            const previousPrice = indicators.closes[indicators.closes.length - 2];
+            const rsi = indicators.rsi;
+            const macd = indicators.macd;
+            const bb = indicators.bb;
+
+            const priceChange = ((currentPrice - previousPrice) / previousPrice) * 100;
+
+            let signal = null;
+            let confidence = 0;
+            const timeInterval = "5-15 minutes";
+
+            if (rsi < 30) {
+                signal = "BUY";
+                confidence = 0.85;
+            } else if (rsi > 70) {
+                signal = "SELL";
+                confidence = 0.85;
+            }
+
+            if (macd.MACD > macd.signal && macd.histogram > 0) {
+                if (signal === "BUY") {
+                    confidence += 0.1;
+                } else if (!signal) {
+                    signal = "BUY";
+                    confidence = 0.8;
+                }
+            } else if (macd.MACD < macd.signal && macd.histogram < 0) {
+                if (signal === "SELL") {
+                    confidence += 0.1;
+                } else if (!signal) {
+                    signal = "SELL";
+                    confidence = 0.8;
+                }
+            }
+
+            if (currentPrice < bb.lower) {
+                if (signal === "BUY") confidence += 0.05;
+            } else if (currentPrice > bb.upper) {
+                if (signal === "SELL") confidence += 0.05;
+            }
+
+            return {
+                signal,
+                confidence: Math.min(confidence, 1.0),
+                timeInterval,
+                currentPrice,
+                rsi,
+                macd: macd.MACD,
+                priceChange
+            };
+        }
+
+        function updateUI(analysis) {
+            document.getElementById('rsiValue').textContent = analysis.rsi.toFixed(2);
+            document.getElementById('macdValue').textContent = analysis.macd.toFixed(4);
+            
+            const sentimentValue = document.getElementById('sentimentValue');
+            const progressBar = document.querySelector('.progress-bar');
+            
+            if (analysis.signal) {
+                const sentiment = analysis.signal === 'BUY' ? 'Bullish' : 'Bearish';
+                sentimentValue.textContent = sentiment;
+                progressBar.style.width = `${analysis.confidence * 100}%`;
+                progressBar.style.backgroundColor = analysis.signal === 'BUY' ? '#28a745' : '#dc3545';
+                
+                const signalClass = analysis.signal === 'BUY' ? 'success' : 'danger';
+                document.getElementById('tradingSignals').innerHTML = `
+                    <div class="alert alert-${signalClass}">
+                        <h5>${analysis.signal} Signal</h5>
+                        <p>Confidence: ${(analysis.confidence * 100).toFixed(1)}%</p>
+                        <p>Recommended Time Interval: ${analysis.timeInterval}</p>
+                        <p>Current Price: ${analysis.currentPrice.toFixed(5)}</p>
+                        <p>Price Change: ${analysis.priceChange.toFixed(2)}%</p>
+                    </div>
+                `;
+            } else {
+                sentimentValue.textContent = 'Neutral';
+                progressBar.style.width = '50%';
+                progressBar.style.backgroundColor = '#6c757d';
+                
+                document.getElementById('tradingSignals').innerHTML = `
+                    <div class="alert alert-warning">
+                        No clear trading signal at the moment. Please wait for better conditions.
+                    </div>
+                `;
+            }
+        }
+
+        async function updateData(apiKey) {
+            try {
+                document.getElementById('analysisResults').innerHTML = `
+                    <div class="alert alert-info">Fetching market data...</div>
+                `;
+
+                const historicalData = await getHistoricalData(apiKey);
+                const indicators = calculateIndicators(historicalData);
+                const analysis = analyzeMarket(historicalData, indicators);
+                updateUI(analysis);
+
+                document.getElementById('analysisResults').innerHTML = `
+                    <div class="alert alert-success">Analysis updated successfully</div>
+                `;
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('analysisResults').innerHTML = `
+                    <div class="alert alert-danger">Error: ${error.message}</div>
+                `;
+            }
+        }
+
+        // Start the analysis automatically when the page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            updateData(API_KEY);
+            updateInterval = setInterval(() => updateData(API_KEY), 300000);
+        });
+    </script>
+</body>
+</html> 

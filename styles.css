@@ -1,0 +1,53 @@
+body {
+    background-color: #f8f9fa;
+}
+
+.card {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    border: none;
+    margin-bottom: 1rem;
+}
+
+.card-header {
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.progress {
+    height: 20px;
+    background-color: #e9ecef;
+}
+
+.progress-bar {
+    background-color: #007bff;
+    transition: width 0.3s ease;
+}
+
+#technicalIndicators h6 {
+    color: #6c757d;
+    margin-bottom: 0.5rem;
+}
+
+#technicalIndicators div:not(h6) {
+    font-size: 1.2rem;
+    font-weight: bold;
+    color: #212529;
+}
+
+.alert {
+    margin-bottom: 0;
+}
+
+#priceChart {
+    width: 100%;
+    height: 400px;
+}
+
+.navbar {
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+#sentimentValue {
+    font-weight: bold;
+    font-size: 1.1rem;
+} 
